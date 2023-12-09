@@ -20,8 +20,12 @@ pub fn handle_eve_authentication(
     client_id: String,
     client_secret: String,
     redirect_url: String,
-    scopes: Vec<Scope>,
+    scopes: Vec<String>,
 ) -> String {
+    fn convert_scopes(scopes: Vec<String>) -> Vec<Scope> {
+        scopes.iter().map(|s| Scope::new(s.clone())).collect()
+    }
+
     let client = BasicClient::new(
         ClientId::new(client_id),
         Some(ClientSecret::new(client_secret)),
@@ -33,6 +37,8 @@ pub fn handle_eve_authentication(
         ),
     )
     .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Failed to set redirect_uri"));
+
+    let scopes = convert_scopes(scopes);
 
     let (eve_oauth_url, _csrf_token) = client
         .authorize_url(CsrfToken::new_random)
@@ -113,17 +119,21 @@ async fn validate_token(token: String) -> TokenData<EveJwtClaims> {
         panic!("Failed to get JWT key values!")
     }
 
+    let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
+    validation.set_audience(&["EVE Online"]);
+    validation.set_issuer(&["https://login.eveonline.com"]);
+
     match jsonwebtoken::decode::<EveJwtClaims>(
         &token,
         &DecodingKey::from_rsa_components(&jwk_n, &jwk_e)
             .expect("Failed to generate decoding key from EveJwtKey"),
-        &Validation::new(jsonwebtoken::Algorithm::RS256),
+        &validation,
     ) {
         Ok(c) => c,
         Err(err) => match *err.kind() {
             ErrorKind::InvalidToken => panic!("Token is invalid"),
             ErrorKind::InvalidIssuer => panic!("Issuer is invalid"),
-            _ => panic!("Unknown token error"),
+            _ => panic!("Unknown token error: {:?}", err),
         },
     }
 }

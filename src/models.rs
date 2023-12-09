@@ -43,7 +43,7 @@ pub enum EveJwtKey {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EveJwtClaims {
-    pub scp: Option<Vec<String>>,
+    pub scp: Option<String>,
     pub jti: String,
     pub kid: String,
     pub sub: String,
@@ -51,7 +51,7 @@ pub struct EveJwtClaims {
     pub tenant: String,
     pub tier: String,
     pub region: String,
-    pub aud: String,
+    pub aud: Vec<String>,
     pub name: String,
     pub owner: String,
     pub exp: u64,

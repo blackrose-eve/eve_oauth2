@@ -1,6 +1,6 @@
 # Rust EVE OAuth2
 
-OAuth2 method for authenticating with EVE Online's SSO using your preferred Rust web framework.
+[Black Rose](https://black-rose.space)'s implementation of an OAuth2 method for authenticating with EVE Online's SSO using your preferred Rust web framework.
 
 ## Initial Setup
 

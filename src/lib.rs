@@ -11,17 +11,23 @@ use oauth2::{
 
 use models::{EveJwtClaims, EveJwtKey, EveJwtKeys, EveSsoMetaData};
 
-/// Generates an authentication URL for EVE Online SSO which you redirect your user to for login.
+pub struct AuthenticationData {
+    pub login_url: String,
+    pub state: String,
+}
+
+/// Generates a state verification string & authentication URL for EVE Online SSO which you use to redirect your user to EVE's login.
+/// More details on the usage of the state string here: https://auth0.com/docs/secure/attack-protection/state-parameters
 ///
 /// Takes client_id & client_secret variables which you get from your EVE developer application (https://developers.eveonline.com/).
 /// redirect_url specifies where your callback is to handle the authorization code, this must match the one in your developer appliacation!
 /// scopes is a vec of scopes which represent the permissions you need from that character such as reading assets or wallet data, these must match the ones in your developer application!
-pub fn handle_eve_authentication(
+pub fn create_login_url(
     client_id: String,
     client_secret: String,
     redirect_url: String,
     scopes: Vec<String>,
-) -> String {
+) -> AuthenticationData {
     fn convert_scopes(scopes: Vec<String>) -> Vec<Scope> {
         scopes.iter().map(|s| Scope::new(s.clone())).collect()
     }
@@ -40,21 +46,24 @@ pub fn handle_eve_authentication(
 
     let scopes = convert_scopes(scopes);
 
-    let (eve_oauth_url, _csrf_token) = client
+    let (eve_oauth_url, csrf_token) = client
         .authorize_url(CsrfToken::new_random)
         .add_scopes(scopes)
         .url();
 
-    eve_oauth_url.to_string()
+    AuthenticationData {
+        login_url: eve_oauth_url.to_string(),
+        state: csrf_token.secret().to_string(),
+    }
 }
 
-/// Handles redirect from EVE Online SSO
+/// Handles callback from EVE Online SSO
 ///
 /// Takes client_id & client_secret variables which you get from your EVE developer application (https://developers.eveonline.com/).
-/// Redirect code is pulled from the GET request URL when the user is redirected to your redirect route
+/// Redirect code is pulled from the GET request URL when the user is redirected to your callback route
 ///
-/// Returns the token_data with data that can be accessed by calling token_data.claims, you can get a user's name through token_data.claims.name
-pub async fn handle_eve_redirect(
+/// Returns the token_data with data that can be accessed by calling token_data.claims, you can get a user's name for example through token_data.claims.name
+pub async fn handle_callback(
     client_id: String,
     client_secret: String,
     redirect_code: String,

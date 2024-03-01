@@ -14,14 +14,14 @@ pub struct EveSsoMetaData {
     pub token_endpoint_auth_signing_alg_values_supported: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EveJwtKeys {
     #[serde(rename = "SkipUnresolvedJsonWebKeys")]
     pub skip_unresolved_json_web_keys: bool,
     pub keys: Vec<EveJwtKey>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "alg")]
 pub enum EveJwtKey {
     RS256 {

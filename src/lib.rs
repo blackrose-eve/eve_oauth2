@@ -1,12 +1,13 @@
 pub mod models;
 
+use cached::proc_macro::cached;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{DecodingKey, TokenData, Validation};
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
-    TokenResponse, TokenUrl,
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
+    RedirectUrl, Scope, StandardTokenResponse, TokenUrl,
 };
 
 use models::{EveJwtClaims, EveJwtKey, EveJwtKeys, EveSsoMetaData};
@@ -60,14 +61,18 @@ pub fn create_login_url(
 /// Handles callback from EVE Online SSO
 ///
 /// Takes client_id & client_secret variables which you get from your EVE developer application (https://developers.eveonline.com/).
+///
 /// Redirect code is pulled from the GET request URL when the user is redirected to your callback route
 ///
-/// Returns the token_data with data that can be accessed by calling token_data.claims, you can get a user's name for example through token_data.claims.name
-pub async fn handle_callback(
+/// Returns the token which you can you retrieve the claims from using validate_token
+/// ```
+/// let token_claims = validate_token(token.access_token().secret().to_string()).await;
+/// ```
+pub async fn get_access_token(
     client_id: String,
     client_secret: String,
-    redirect_code: String,
-) -> TokenData<EveJwtClaims> {
+    code: String,
+) -> StandardTokenResponse<EmptyExtraTokenFields, oauth2::basic::BasicTokenType> {
     let client = BasicClient::new(
         ClientId::new(client_id),
         Some(ClientSecret::new(client_secret)),
@@ -79,37 +84,43 @@ pub async fn handle_callback(
         ),
     );
 
-    let token = client
-        .exchange_code(AuthorizationCode::new(redirect_code.to_string()))
+    client
+        .exchange_code(AuthorizationCode::new(code.to_string()))
         .request_async(async_http_client)
         .await
-        .expect("Failed to get token using redirect_code");
-
-    validate_token(token.access_token().secret().to_string()).await
+        .expect("Failed to get token using redirect_code")
 }
 
-async fn validate_token(token: String) -> TokenData<EveJwtClaims> {
-    let sso_meta_data_url = "https://login.eveonline.com/.well-known/oauth-authorization-server";
+/// Validates a token which can be retrieved using `get_access_token`
+///
+/// On successful validation it will return the EVE JWT claims
+pub async fn validate_token(token: String) -> TokenData<EveJwtClaims> {
+    #[cached(time = 10800)]
+    async fn get_eve_jwt_keys() -> EveJwtKeys {
+        let sso_meta_data_url =
+            "https://login.eveonline.com/.well-known/oauth-authorization-server";
 
-    let res: EveSsoMetaData = reqwest::Client::new()
-        .get(sso_meta_data_url)
-        .send()
-        .await
-        .expect("Failed to get EveSsoMetaData")
-        .json()
-        .await
-        .expect("Failed to deserialize EveSsoMetaData");
+        let res: EveSsoMetaData = reqwest::Client::new()
+            .get(sso_meta_data_url)
+            .send()
+            .await
+            .expect("Failed to get EveSsoMetaData")
+            .json()
+            .await
+            .expect("Failed to deserialize EveSsoMetaData");
 
-    let res: EveJwtKeys = reqwest::Client::new()
-        .get(res.jwks_uri)
-        .send()
-        .await
-        .expect("Failed to get EveJwtKeys")
-        .json()
-        .await
-        .expect("Failed to deserialize EveJwtKeys");
+        reqwest::Client::new()
+            .get(res.jwks_uri)
+            .send()
+            .await
+            .expect("Failed to get EveJwtKeys")
+            .json()
+            .await
+            .expect("Failed to deserialize EveJwtKeys")
+    }
 
-    let jwk_key = select_key(res.keys).expect("Failed to find RS256 EveJwtKey");
+    let jwk_key =
+        select_key(get_eve_jwt_keys().await.keys).expect("Failed to find RS256 EveJwtKey");
 
     let jwk_n: String;
     let jwk_e: String;

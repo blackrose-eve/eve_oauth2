@@ -26,7 +26,8 @@ You will need the following API routes:
 See the [axum](https://github.com/blackrose-eve/eve_oauth2/tree/main/examples/axum.rs) example to see the implementation above in action.
 
 To test out the axum example:
-    1. Copy .env.example to .env and fill out the variables which you can get from https://developers.eveonline.com/
-    2. Run `cargo run --example axum`
-    3. Login at `http://localhost:8000/login`
-    4. On successful login you'll see your character id & name
+
+1. Copy .env.example to .env and fill out the variables which you can get from https://developers.eveonline.com/
+2. Run `cargo run --example axum`
+3. Login at `http://localhost:8000/login`
+4. On successful login you'll see your character id & name

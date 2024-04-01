@@ -1,6 +1,6 @@
 [package]
 name = "eve_oauth2"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Hyziri"]
 edition = "2021"
 description = "Black Rose's OAuth2 implementation for EVE Online SSO"
